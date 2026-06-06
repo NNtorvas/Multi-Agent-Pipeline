@@ -1,0 +1,138 @@
+name: _build-push
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+    outputs:
+      airflow_image:
+        description: "Fully qualified airflow image (tag=version)"
+        value: ${{ jobs.build-airflow.outputs.airflow_image }}
+      streamlit_image:
+        description: "Fully qualified streamlit image (tag=version)"
+        value: ${{ jobs.build-streamlit.outputs.streamlit_image }}
+
+jobs:
+  build-airflow:
+    name: Build & push Airflow
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      airflow_image: ${{ steps.refs.outputs.airflow }}
+
+    steps:
+      - name: Validate version input
+        shell: bash
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "Invalid version: ${{ inputs.version }}"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Set versioned image references
+        id: refs
+        shell: bash
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          BASE="ghcr.io/${OWNER}/multi-agent-pipeline"
+          echo "airflow=${BASE}-airflow:${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          echo "airflow_cache=${BASE}-airflow:buildcache" >> "$GITHUB_OUTPUT"
+          echo "owner_lc=${OWNER}" >> "$GITHUB_OUTPUT"
+
+      - name: Airflow — extract metadata
+        id: meta-airflow
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ steps.refs.outputs.owner_lc }}/multi-agent-pipeline-airflow
+          tags: |
+            type=raw,value=${{ inputs.version }}
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Airflow — build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.airflow
+          push: true
+          tags: ${{ steps.meta-airflow.outputs.tags }}
+          labels: ${{ steps.meta-airflow.outputs.labels }}
+          cache-from: type=registry,ref=${{ steps.refs.outputs.airflow_cache }}
+          cache-to: type=registry,ref=${{ steps.refs.outputs.airflow_cache }},mode=max,image-manifest=true,oci-mediatypes=true
+
+  build-streamlit:
+    name: Build & push Streamlit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      streamlit_image: ${{ steps.refs.outputs.streamlit }}
+
+    steps:
+      - name: Validate version input
+        shell: bash
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "Invalid version: ${{ inputs.version }}"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Set versioned image references
+        id: refs
+        shell: bash
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          BASE="ghcr.io/${OWNER}/multi-agent-pipeline"
+          echo "streamlit=${BASE}-streamlit:${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          echo "streamlit_cache=${BASE}-streamlit:buildcache" >> "$GITHUB_OUTPUT"
+          echo "owner_lc=${OWNER}" >> "$GITHUB_OUTPUT"
+
+      - name: Streamlit — extract metadata
+        id: meta-streamlit
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ steps.refs.outputs.owner_lc }}/multi-agent-pipeline-streamlit
+          tags: |
+            type=raw,value=${{ inputs.version }}
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Streamlit — build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.streamlit
+          push: true
+          tags: ${{ steps.meta-streamlit.outputs.tags }}
+          labels: ${{ steps.meta-streamlit.outputs.labels }}
+          cache-from: type=registry,ref=${{ steps.refs.outputs.streamlit_cache }}
+          cache-to: type=registry,ref=${{ steps.refs.outputs.streamlit_cache }},mode=max,image-manifest=true,oci-mediatypes=true

@@ -1,0 +1,11 @@
+.env
+.env.*
+chroma_db/
+logs/
+__pycache__/
+**/*.pyc
+.idea/
+.git/
+.venv/
+docs/
+.github/

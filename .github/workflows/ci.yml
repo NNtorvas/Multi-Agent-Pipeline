@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint & format check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install lint tools
+        run: pip install -r requirements-dev.txt
+
+      - name: Check formatting & lint
+        run: |
+          black --check --diff agents/ pipeline/ utils/ airflow_dags/ streamlit_app/ main.py
+          flake8 agents/ pipeline/ utils/ airflow_dags/ streamlit_app/ main.py

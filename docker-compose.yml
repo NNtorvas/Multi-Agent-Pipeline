@@ -1,0 +1,99 @@
+version: "3.9"
+
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://pipeline:pipeline@postgres:5432/airflow
+  AIRFLOW__WEBSERVER__SECRET_KEY: "change-me-in-production"
+  AIRFLOW__CORE__FERNET_KEY: ""
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  DATABASE_URL: postgresql://pipeline:pipeline@postgres:5432/pipeline
+
+x-airflow-volumes: &airflow-volumes
+  - ./airflow_dags:/opt/airflow/dags
+  - ./agents:/opt/airflow/agents
+  - ./pipeline:/opt/airflow/pipeline
+  - ./utils:/opt/airflow/utils
+  - ./chroma_db:/opt/airflow/chroma_db
+  - ./logs:/opt/airflow/logs/app
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: pipeline
+      POSTGRES_PASSWORD: pipeline
+      POSTGRES_DB: pipeline
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pipeline"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Airflow webserver ──────────────────────────────────────────────────────
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *airflow-env
+    ports:
+      - "8080:8080"
+    volumes: *airflow-volumes
+    command: >
+      bash -c "
+        airflow db migrate &&
+        airflow users create
+          --username admin --password admin
+          --firstname Admin --lastname User
+          --role Admin --email admin@example.com || true &&
+        airflow webserver
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── Airflow scheduler ──────────────────────────────────────────────────────
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      airflow-webserver:
+        condition: service_healthy
+    environment:
+      <<: *airflow-env
+    volumes: *airflow-volumes
+    command: airflow scheduler
+
+  # ── Streamlit UI ───────────────────────────────────────────────────────────
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://pipeline:pipeline@postgres:5432/pipeline
+      AIRFLOW_BASE_URL: http://airflow-webserver:8080
+      AIRFLOW_USER: admin
+      AIRFLOW_PASS: admin
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./chroma_db:/app/chroma_db
+
+volumes:
+  postgres_data:

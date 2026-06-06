@@ -1,0 +1,17 @@
+# Core LangGraph + Anthropic
+langgraph>=0.2.0
+langchain-core>=0.3.0
+anthropic>=0.49.0
+
+# Embeddings + vector store
+sentence-transformers>=2.7.0
+chromadb>=0.5.0
+
+# Weather data
+requests>=2.31.0
+
+# Database
+psycopg2-binary>=2.9.9
+
+# UI
+streamlit>=1.35.0

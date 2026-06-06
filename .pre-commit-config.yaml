@@ -1,0 +1,39 @@
+repos:
+  # ── File hygiene ──────────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+  # ── Formatting ────────────────────────────────────────────────────────────────
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        language_version: python3
+
+  # ── Linting ───────────────────────────────────────────────────────────────────
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.0
+    hooks:
+      - id: flake8
+        additional_dependencies: ["flake8-pyproject==1.1.0"]
+
+  # ── Version gate (pre-push only) ──────────────────────────────────────────────
+  # always_run: true is required because pass_filenames: false means the hook
+  # would never fire otherwise. It checks __version__.py on every push regardless
+  # of which files changed — intentional: every push must carry a version bump.
+  - repo: local
+    hooks:
+      - id: version-bump-check
+        name: Version bump check
+        language: system
+        language_version: python3
+        entry: python scripts/check_version_bump.py
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true

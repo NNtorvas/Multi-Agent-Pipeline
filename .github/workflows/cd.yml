@@ -1,0 +1,31 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/_prep.yml
+    permissions:
+      contents: write
+
+  build-push:
+    if: github.ref == 'refs/heads/main'
+    needs: prepare
+    uses: ./.github/workflows/_build-push.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write

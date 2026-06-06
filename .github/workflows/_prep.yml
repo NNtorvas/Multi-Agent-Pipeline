@@ -1,0 +1,82 @@
+name: _prep
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: "Semantic version extracted from __version__.py"
+        value: ${{ jobs.validate-and-tag.outputs.version }}
+
+jobs:
+  validate-and-tag:
+    name: Validate version & create tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so git describe can find tags
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Extract version from __version__.py
+        id: extract
+        shell: bash
+        run: |
+          VERSION=$(python -c "
+          import ast, sys
+          src = open('__version__.py').read()
+          try:
+              tree = ast.parse(src)
+          except SyntaxError as e:
+              print(f'[version-gate] FAIL: __version__.py has syntax error: {e}', file=sys.stderr)
+              sys.exit(1)
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Assign):
+                  for t in node.targets:
+                      if isinstance(t, ast.Name) and t.id == '__version__':
+                          print(ast.literal_eval(node.value))
+                          sys.exit(0)
+          print('[version-gate] FAIL: __version__ not found in __version__.py', file=sys.stderr)
+          sys.exit(1)
+          ")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate semver bump against latest tag
+        shell: bash
+        run: |
+          CURR="${{ steps.extract.outputs.version }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          PREV="${PREV_TAG#v}"
+          python -c "
+          import re, sys
+          def parse(v):
+              core = re.split(r'[-+]', v)[0]
+              try:
+                  parts = tuple(int(x) for x in core.split('.'))
+              except ValueError:
+                  print(f'[version-gate] ERROR: cannot parse version string \"{v}\"', file=sys.stderr)
+                  sys.exit(2)
+              return parts
+          curr = parse('${CURR}')
+          prev = parse('${PREV}')
+          if curr <= prev:
+              print(f'[version-gate] FAIL: bump __version__.py before pushing. latest=${PREV} current=${CURR}')
+              sys.exit(1)
+          print(f'[version-gate] OK: ${PREV} -> ${CURR}')
+          "
+
+      - name: Create annotated git tag
+        shell: bash
+        run: |
+          VERSION="${{ steps.extract.outputs.version }}"
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag -a "v${VERSION}" HEAD -m "Release v${VERSION}"
+          git push origin "v${VERSION}"
