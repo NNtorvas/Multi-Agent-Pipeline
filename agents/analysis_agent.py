@@ -5,8 +5,8 @@ from pipeline.state import PipelineState
 from utils.claude_wrapper import call_claude
 
 _SYSTEM = """\
-You are a meteorological data analyst. Given a 7-day weather forecast as JSON, respond with \
-ONLY valid JSON matching this exact schema — no markdown fences, no prose:
+You are a meteorological data analyst. Given a 7-day weather forecast as JSON,
+respond with ONLY valid JSON matching this exact schema — no markdown fences, no prose:
 {
   "observations": ["<string>", "<string>", "<string>"],
   "anomaly_flag": <boolean>,
@@ -38,8 +38,8 @@ def run_analysis_agent(state: PipelineState) -> dict:
         return {"analysis": _FALLBACK, "status": "analysis_skipped"}
 
     prompt = (
-        "Analyse this 7-day weather forecast for Paris. Detect trends, anomalies, and risks:\n"
-        + json.dumps(weather_data, indent=2)
+        "Analyse this 7-day weather forecast for Paris."
+        " Detect trends, anomalies, and risks:\n" + json.dumps(weather_data, indent=2)
     )
     try:
         raw = call_claude(
@@ -48,7 +48,10 @@ def run_analysis_agent(state: PipelineState) -> dict:
             max_tokens=512,
         )
         analysis = json.loads(raw)
-        logging.info("[analysis_agent] Analysis complete — anomaly_flag=%s", analysis.get("anomaly_flag"))
+        logging.info(
+            "[analysis_agent] Analysis complete — anomaly_flag=%s",
+            analysis.get("anomaly_flag"),
+        )
         return {"analysis": analysis, "status": "analysis_complete"}
     except Exception as exc:
         logging.error("[analysis_agent] Failed: %s", exc)

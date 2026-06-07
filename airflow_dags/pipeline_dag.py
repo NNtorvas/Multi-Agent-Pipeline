@@ -26,12 +26,16 @@ def _run_analysis_pipeline(**context) -> None:
 
     result = run_pipeline()
 
-    report_md = result.get("report") or "Report generation failed — check pipeline logs."
+    report_md = (
+        result.get("report") or "Report generation failed — check pipeline logs."
+    )
     status = result.get("status", "unknown")
     errors = result.get("errors", [])
 
     if errors:
-        logging.warning("[dag] Pipeline completed with %d error(s): %s", len(errors), errors)
+        logging.warning(
+            "[dag] Pipeline completed with %d error(s): %s", len(errors), errors
+        )
 
     report_id = save_report(report_md, status)
     logging.info("[dag] Run complete — report_id=%d status=%s", report_id, status)

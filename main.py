@@ -6,6 +6,7 @@ Usage:
 
 Set DATABASE_URL to also persist the report to PostgreSQL.
 """
+
 import os
 import sys
 import logging
@@ -38,6 +39,7 @@ if __name__ == "__main__":
 
     if os.environ.get("DATABASE_URL"):
         from utils.db import init_db, save_report  # noqa: E402
+
         init_db()
         rid = save_report(report, result["status"])
         print(f"\nSaved to PostgreSQL — report id={rid}")

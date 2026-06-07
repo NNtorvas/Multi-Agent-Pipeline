@@ -45,5 +45,9 @@ def run_pipeline() -> PipelineState:
     }
     logging.info("[pipeline] Invoking LangGraph state machine")
     result: PipelineState = pipeline.invoke(initial)
-    logging.info("[pipeline] Finished with status=%s errors=%s", result["status"], result["errors"])
+    logging.info(
+        "[pipeline] Finished with status=%s errors=%s",
+        result["status"],
+        result["errors"],
+    )
     return result

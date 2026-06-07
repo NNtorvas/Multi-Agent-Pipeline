@@ -14,7 +14,10 @@ def _fetch_weather() -> dict:
     params = {
         "latitude": 48.8566,
         "longitude": 2.3522,
-        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max",
+        "daily": (
+            "temperature_2m_max,temperature_2m_min,"
+            "precipitation_sum,windspeed_10m_max"
+        ),
         "timezone": "Europe/Paris",
         "forecast_days": 7,
     }
@@ -49,7 +52,11 @@ def run_data_agent(state: PipelineState) -> dict:
     except Exception as exc:
         logging.error("[data_agent] Failed: %s", exc)
         return {
-            "weather_data": {"location": "Paris, France", "days": [], "error": str(exc)},
+            "weather_data": {
+                "location": "Paris, France",
+                "days": [],
+                "error": str(exc),
+            },
             "errors": state["errors"] + [f"data_agent: {exc}"],
             "status": "data_failed",
         }
