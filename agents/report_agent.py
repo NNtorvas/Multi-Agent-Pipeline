@@ -12,8 +12,9 @@ Generate a professional markdown report with exactly these four sections in orde
 ## Historical Context
 ## Recommended Actions
 
-Rules: use bullet points in Key Findings and Recommended Actions; \
-be concise and actionable; do not add extra sections or commentary outside the four headers."""
+Rules: use bullet points in Key Findings and Recommended Actions;
+be concise and actionable;
+do not add extra sections or commentary outside the four headers."""
 
 _FALLBACK = """\
 ## Summary

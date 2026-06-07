@@ -21,11 +21,15 @@ def get_current_version() -> str:
 
 def get_latest_tag() -> str:
     try:
-        tag = subprocess.check_output(
-            ["git", "describe", "--tags", "--abbrev=0"],
-            stderr=subprocess.DEVNULL,
-            timeout=10,
-        ).decode("utf-8").strip()
+        tag = (
+            subprocess.check_output(
+                ["git", "describe", "--tags", "--abbrev=0"],
+                stderr=subprocess.DEVNULL,
+                timeout=10,
+            )
+            .decode("utf-8")
+            .strip()
+        )
         return tag.lstrip("v")
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return "0.0.0"
@@ -36,7 +40,9 @@ def parse_version(v: str) -> tuple:
     try:
         return tuple(int(x) for x in core.split("."))
     except ValueError:
-        print(f"[version-gate] ERROR: cannot parse version string '{v}'", file=sys.stderr)
+        print(
+            f"[version-gate] ERROR: cannot parse version string '{v}'", file=sys.stderr
+        )
         sys.exit(2)
 
 
