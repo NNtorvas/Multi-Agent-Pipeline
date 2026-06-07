@@ -26,7 +26,7 @@ airflow_dags/    pipeline_dag.py — the @daily Airflow DAG
 streamlit_app/   app.py — Streamlit UI
 scripts/         check_version_bump.py — pre-push semver gate
 docker/          init.sql — creates airflow + pipeline databases
-docs/            design specs and implementation plans (superpowers/)
+docs/            DEEP_DIVE.md, project-overview.md, superpowers/ (specs + plans)
 logs/            token_usage.log (auto-created, gitignored)
 chroma_db/       ChromaDB persistence directory (auto-created, gitignored)
 ```
@@ -37,11 +37,12 @@ chroma_db/       ChromaDB persistence directory (auto-created, gitignored)
 |---|---|
 | `Makefile` | Developer ergonomics — run `make help` |
 | `__version__.py` | Single source of truth for semver (`0.1.0`) |
-| `requirements.txt` | Runtime dependencies only |
+| `requirements.txt` | Runtime dependencies — used by the Streamlit Docker image |
+| `requirements-pipeline.txt` | Pipeline-only deps (no Streamlit) — used by the Airflow Docker image |
 | `requirements-dev.txt` | Dev tools: black, flake8, pre-commit, pytest |
 | `pyproject.toml` | Flake8 config (`max-line-length = 88`, `extend-ignore = E203, W503`) |
 | `.pre-commit-config.yaml` | Git hooks: hygiene + black + flake8 on commit; semver gate on push |
-| `.dockerignore` | Excludes `.env`, `chroma_db/`, `logs/`, `.venv/`, etc. from Docker context |
+| `.dockerignore` | Excludes `chroma_db/`, `logs/`, `.venv/`, etc. from Docker context |
 | `.github/workflows/ci.yml` | CI: lint on every push + PR |
 | `.github/workflows/cd.yml` | CD orchestrator: push to main → tag → GHCR |
 | `.github/workflows/_prep.yml` | Reusable: semver gate + annotated git tag |
@@ -83,8 +84,8 @@ Does not require PostgreSQL — skips DB save if `DATABASE_URL` is unset.
 
 ### Docker (full stack)
 ```bash
-cp .env.example .env   # fill in ANTHROPIC_API_KEY
-make up                # equivalent to: docker compose up --build
+export ANTHROPIC_API_KEY=sk-ant-...   # set in your shell before running
+make up                               # equivalent to: docker compose up --build
 make logs              # tail all container logs
 make down              # stop and remove all services
 ```
@@ -136,7 +137,7 @@ except Exception as exc:
 ```
 
 ### Claude model name
-Always `claude-sonnet-4-20250514`. It is hardcoded as `MODEL` in
+Always `claude-sonnet-4-6`. It is hardcoded as `MODEL` in
 `utils/claude_wrapper.py`. Do not pass a different model string to `call_claude`.
 
 ### Logging
@@ -178,7 +179,7 @@ Do not use `print()` in pipeline code.
 ## Database Schema
 
 ```sql
--- reports table (pipeline/utils/db.py init_db())
+-- reports table (utils/db.py init_db())
 CREATE TABLE reports (
     id              SERIAL PRIMARY KEY,
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -221,7 +222,7 @@ Do not delete this file — it is the cost audit trail.
 - Airflow webserver runs `airflow db migrate` before starting — scheduler waits for it
 - Code changes on the host are immediately visible in containers via bind mounts
   (no rebuild needed for Python file changes)
-- To rebuild after dependency changes: `docker-compose up --build`
+- To rebuild after dependency changes: `docker compose up --build`
 
 ---
 

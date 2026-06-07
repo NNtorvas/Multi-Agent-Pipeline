@@ -51,11 +51,10 @@ Each agent receives the full `PipelineState`, returns only the keys it mutates, 
 - An [Anthropic API key](https://console.anthropic.com/)
 - Git Bash or WSL (required for `make` commands on Windows)
 
-### 2. Configure environment
+### 2. Set your API key
 
 ```bash
-cp .env.example .env
-# Edit .env and set your ANTHROPIC_API_KEY
+export ANTHROPIC_API_KEY=sk-ant-...   # required for all pipeline runs
 ```
 
 ### 3. Install dev tools and set up git hooks
@@ -126,6 +125,10 @@ python main.py
 │       ├── cd.yml          # CD orchestrator (push to main)
 │       ├── _prep.yml       # Reusable: semver gate + git tag
 │       └── _build-push.yml # Reusable: airflow + streamlit → GHCR
+├── docs/
+│   ├── DEEP_DIVE.md        # Architecture decisions and design rationale
+│   ├── project-overview.md # Technical reference: stack, flow, connections
+│   └── superpowers/        # Design specs and implementation plans
 ├── docker/
 │   └── init.sql            # Creates airflow + pipeline databases
 ├── docker-compose.yml
@@ -134,8 +137,9 @@ python main.py
 ├── .dockerignore
 ├── .pre-commit-config.yaml
 ├── pyproject.toml          # Flake8 config (max-line-length=88)
-├── requirements.txt        # Runtime dependencies
-├── requirements-dev.txt    # Dev tools: black, flake8, pre-commit, pytest
+├── requirements.txt            # Runtime deps (Streamlit container)
+├── requirements-pipeline.txt  # Runtime deps (Airflow image — no Streamlit)
+├── requirements-dev.txt        # Dev tools: black, flake8, pre-commit, pytest
 ├── __version__.py          # Single source of truth for semver
 ├── Makefile                # Developer ergonomics (see make help)
 └── main.py                 # Local CLI runner
@@ -165,7 +169,7 @@ make clean       # remove __pycache__, .pytest_cache, .pyc
 
 ### Pre-commit hooks
 
-After `make hooks`, every commit runs: trailing-whitespace, end-of-file-fixer, Black, Flake8.  
+After `make hooks`, every commit runs: trailing-whitespace, end-of-file-fixer, Black, Flake8.
 Every push runs an additional version-bump gate — `__version__.py` must be bumped beyond the latest git tag before pushing to `main`.
 
 ---
@@ -212,7 +216,7 @@ The alternative (raising exceptions to abort the graph) would produce no output 
 ### Why a single `call_claude` wrapper?
 
 All three Claude-powered agents import `call_claude` from `utils/claude_wrapper.py`. This gives a single place to:
-- Enforce the model name (`claude-sonnet-4-20250514`)
+- Enforce the model name (`claude-sonnet-4-6`)
 - Apply the retry decorator (exponential back-off, max 3 attempts)
 - Log every call's token consumption to `logs/token_usage.log`
 

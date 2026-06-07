@@ -6,7 +6,7 @@ from pathlib import Path
 
 from anthropic import Anthropic
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 _TOKEN_LOG = Path(__file__).parent.parent / "logs" / "token_usage.log"
 _TOKEN_LOG.parent.mkdir(exist_ok=True)
 
@@ -22,6 +22,7 @@ def _get_client() -> Anthropic:
 
 def retry(max_retries: int = 3, base_delay: float = 1.0):
     """Exponential-backoff retry decorator shared by data fetch and Claude calls."""
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -31,13 +32,19 @@ def retry(max_retries: int = 3, base_delay: float = 1.0):
                 except Exception as exc:
                     if attempt == max_retries - 1:
                         raise
-                    delay = base_delay * (2 ** attempt)
+                    delay = base_delay * (2**attempt)
                     logging.warning(
                         "[retry] %s attempt %d/%d failed: %s — retrying in %.1fs",
-                        func.__name__, attempt + 1, max_retries, exc, delay,
+                        func.__name__,
+                        attempt + 1,
+                        max_retries,
+                        exc,
+                        delay,
                     )
                     time.sleep(delay)
+
         return wrapper
+
     return decorator
 
 
